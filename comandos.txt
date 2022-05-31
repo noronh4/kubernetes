@@ -1,0 +1,106 @@
+#List kubeadm versions
+yum list --showduplicates kubeadm --disableexcludes=kubernetes
+
+#Update k8s version on nodes
+yum list --showduplicates kubeadm --disableexcludes=kubernetes List kubeadm versions
+yum install -y kubeadm-1.22.x-0 --disableexcludes=kubernetes
+
+#Add nó
+kubeadm token create --print-join-command
+
+#Resolver ERRO 	[ERROR FileAvailable--etc-kubernetes-kubelet.conf]: /etc/kubernetes/kubelet.conf already exists
+#	              [ERROR FileAvailable--etc-kubernetes-pki-ca.crt]: /etc/kubernetes/pki/ca.crt already exists
+kubeadm reset
+
+#Colocar o nó em manutenção
+kubectl drain <node-to-drain> --ignore-daemonsets
+
+#Trazer o nó de volta
+kubectl uncordon <node-to-drain>
+
+#Atulizando kubetctl e kubelet
+yum install -y kubelet-1.21.11-0 kubectl-1.21.11-0 --disableexcludes=kubernetes
+yum install -y kubelet-1.21.11-0 --disableexcludes=kubernetes
+
+#Restart kubelet
+sudo systemctl daemon-reload
+sudo systemctl restart kubelet
+
+#Snapshot etcd
+ETCDCTL_API=3 etcdctl --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+ --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key \
+  snapshot save backup1.db
+ETCDCTL_API=3 etcdctl snapshot restore <file.snapshotdb>
+ETCDCTL_API=3 etcdctl --data-dir <data-dir-location> snapshot restore <file.snapshotdb>
+
+
+kubectl create serviceaccount userservice-teste
+kubectl create role userservicerole-teste --verb=get,list,watch --resource=pods
+kubectl create rolebinding userservicerolebinding-teste --role=userservicerole-teste --serviceaccount=default:userservice-teste
+kubectl auth can-i get secret --as=system:serviceaccount:default:userservice-teste -n default
+
+
+kubectl create serviceaccount serviceaccount-teste2
+kubectl run app-static-pod --image=nginx --port=82 --dry-run=client -o yaml > static-pod-teste.ym
+
+#initContainer primeiro sao executados os init containers e depois são executados os containers da aplicação principal
+
+kubectl get po --wath
+
+#Replicaset: garante a quantidade de replicas 
+#deployment: garante o estado desejado do container 
+#Rollout: Gerencia a distribuição de um recurso
+
+#kubectl scale deployment/nginx-deployment --replicas=10
+#kubectl autoscale deployment/nginx-deployment --min=10 --max=15 --cpu-percent=80
+
+#Atualizando nome da imagem --record: deixa uma anotação no describe
+kubectl set image deploy nginx-deploy nginx=nginx:1.14.2 --record 
+kubectl rollout history  deploy nginx-deploy
+kubectl rollout history  deploy nginx-deploy --revision=1 (mais detalhes)
+#Rollback para uma revision anterior
+kubectl rollout undo deploy nginx-deploy --to-revision=1
+
+#The command shuts down and restarts each container in your deployment one by one. Because most of the containers are still functioning, your app will be accessible.
+kubectl rollout restart
+
+
+
+#Horizontal autoscaling
+kubectl autoscale deployment/nginx-deployment --min=10 --max=15 --cpu-percent=80
+kubectl scale deploy nginx-deploy --replicas=7
+
+#label
+kubectl label node k8s-worker-1 teste-label=teste-label
+#deletar label (nome da label com um "-" no fim)
+kubectl label node k8s-worker-1 teste-label-
+
+#Taint é uma "marca" utilizada geralmente no nó master para evitar que pods sejam rodados nesse nó
+      #NoSchedule: não permite que novas pods subam no node
+      #PreferNoSchedule: tentar não agendar pods para o node
+      #NoExecute: irá excluir a pods que já existem no node
+#deletar taint (nome da label com um "-" no fim)
+kubectl taint node k8s-master node-role.kubernetes.io/master-
+
+#Toleration é utilizado para burlar o Taint
+
+#DaemonSet executa um Pod em cada nó
+      #Some typical uses of a DaemonSet are:
+      #
+      #running a cluster storage daemon on every node
+      #running a logs collection daemon on every node
+      #running a node monitoring daemon on every node
+
+
+#StatefulSets: Obejto usado para gerenciar aplicações com estado e identificadores únicos
+
+#Service: cria um EndPoint para os ips da Pod
+
+#Ingress: Object API que gerencia acesso externo aos serviços dentro do Cluster, tipicamente HTTP
+          #Nada mais é que um proxy que faz o redirecionamento do tráfego que chega para o serviço correto
+          #Direciona o DNS ao IP
+          #Só funciona com Ingress Controller
+
+#Ingress Class: Linka o Ingress ao Ingress Controller
+
+#Annotation: Add metadata ao Pod. 
